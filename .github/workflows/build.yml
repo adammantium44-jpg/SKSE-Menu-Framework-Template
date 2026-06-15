@@ -28,17 +28,19 @@ jobs:
           mkdir "${{ env.SKYRIM_FOLDER }}"
           mkdir "${{ env.SKYRIM_FOLDER }}\Data"
 
-      - name: Install vcpkg (classic)
+      - name: Install vcpkg (manifest mode, no baseline)
         run: |
           git clone https://github.com/microsoft/vcpkg "${{ github.workspace }}\vcpkg"
           cd "${{ github.workspace }}\vcpkg"
           .\bootstrap-vcpkg.bat
           echo "CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
+          # Matikan baseline supaya port clib-util tidak perlu ada di baseline
+          echo "VCPKG_FEATURE_FLAGS=-manifests,-binarycaching" >> $env:GITHUB_ENV
 
-      - name: Install dependencies via vcpkg
+      - name: Install dependencies via vcpkg manifest
         run: |
           cd "${{ github.workspace }}"
-          .\vcpkg\vcpkg.exe install clib-util:x64-windows spdlog:x64-windows fmt:x64-windows
+          .\vcpkg\vcpkg.exe install
 
       - name: Configure
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}"
