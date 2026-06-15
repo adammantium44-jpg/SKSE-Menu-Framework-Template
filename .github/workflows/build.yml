@@ -38,7 +38,12 @@ jobs:
       - name: Install dependencies via vcpkg
         run: |
           cd "${{ github.workspace }}"
-          .\vcpkg\vcpkg.exe install spdlog:x64-windows fmt:x64-windows
+          .\vcpkg\vcpkg.exe install commonlibsse-ng:x64-windows spdlog:x64-windows fmt:x64-windows
+
+      - name: Set COMMONLIB_SSE_FOLDER env
+        run: |
+          $clib = "${{ github.workspace }}\vcpkg\installed\x64-windows\share\commonlibsse-ng"
+          echo "COMMONLIB_SSE_FOLDER=$clib" >> $env:GITHUB_ENV
 
       - name: Configure
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}"
