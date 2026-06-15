@@ -16,8 +16,10 @@ jobs:
       SKYRIM_FOLDER: ${{ github.workspace }}\dummy-skyrim
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repo (with submodules)
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install MSVC (toolchain)
         uses: microsoft/setup-msbuild@v2
@@ -28,25 +30,8 @@ jobs:
           mkdir "${{ env.SKYRIM_FOLDER }}"
           mkdir "${{ env.SKYRIM_FOLDER }}\Data"
 
-      - name: Install vcpkg (classic)
-        run: |
-          git clone https://github.com/microsoft/vcpkg "${{ github.workspace }}\vcpkg"
-          cd "${{ github.workspace }}\vcpkg"
-          .\bootstrap-vcpkg.bat
-          echo "CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
-
-      - name: Install dependencies via vcpkg
-        run: |
-          cd "${{ github.workspace }}"
-          .\vcpkg\vcpkg.exe install commonlibsse-ng:x64-windows spdlog:x64-windows fmt:x64-windows
-
-      - name: Set COMMONLIB_SSE_FOLDER env
-        run: |
-          $clib = "${{ github.workspace }}\vcpkg\installed\x64-windows\share\commonlibsse-ng"
-          echo "COMMONLIB_SSE_FOLDER=$clib" >> $env:GITHUB_ENV
-
       - name: Configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}"
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build build --config Release
