@@ -5,7 +5,7 @@
 #include <locale>
 #include <string>
 
-static auto menuFramework = GetModuleHandle(L"SKSEMenuFramework");
+static auto menuFramework = GetModuleHandle("SKSEMenuFramework");
 #define MENU_WINDOW SKSEMenuFramework::Model::WindowInterface*
 
 namespace ImGuiMCP {
