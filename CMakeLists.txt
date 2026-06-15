@@ -60,10 +60,10 @@ set(ENABLE_SKYRIM_AE ON CACHE BOOL " " FORCE)
 set(ENABLE_SKYRIM_VR ON CACHE BOOL " " FORCE)
 set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
 
-# RapidCSV include dir (for CommonLibSSE-NG; provided by vcpkg)
-if(NOT DEFINED RAPIDCSV_INCLUDE_DIRS AND DEFINED ENV{VCPKG_ROOT})
+# RapidCSV include dir (lokal, dari repo sendiri)
+if(NOT DEFINED RAPIDCSV_INCLUDE_DIRS)
     set(RAPIDCSV_INCLUDE_DIRS
-        "$ENV{VCPKG_ROOT}/installed/x64-windows/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/extern/rapidcsv"
     )
 endif()
 
