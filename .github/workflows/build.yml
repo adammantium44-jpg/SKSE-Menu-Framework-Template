@@ -1,0 +1,56 @@
+name: Build SKSE Menu Framework Template
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    env:
+      SKYRIM_MODS_FOLDER: ${{ github.workspace }}\dummy-mods
+      SKYRIM_FOLDER: ${{ github.workspace }}\dummy-skyrim
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install MSVC (toolchain)
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Create dummy folders for env vars
+        run: |
+          mkdir "${{ env.SKYRIM_MODS_FOLDER }}"
+          mkdir "${{ env.SKYRIM_FOLDER }}"
+          mkdir "${{ env.SKYRIM_FOLDER }}\Data"
+
+      - name: Install vcpkg (manifest mode)
+        run: |
+          git clone https://github.com/microsoft/vcpkg "${{ github.workspace }}\vcpkg"
+          cd "${{ github.workspace }}\vcpkg"
+          .\bootstrap-vcpkg.bat
+          echo "CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
+
+      - name: Install dependencies via vcpkg manifest
+        run: |
+          cd "${{ github.workspace }}"
+          .\vcpkg\vcpkg.exe install --triplet x64-windows
+
+      - name: Configure
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}"
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload built DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: SKSE-plugin-dll
+          path: |
+            build/Release/*.dll
+            build/*.dll
+            ${{ env.SKYRIM_MODS_FOLDER }}/**/*.dll
