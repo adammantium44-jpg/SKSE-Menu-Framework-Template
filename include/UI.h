@@ -1,6 +1,6 @@
 #pragma once
 #include "SKSEMenuFramework.h"
-#include <imgui/imgui.h>
+#include "imgui.h"
 #include "Configuration.h"
 namespace UI {
     void Register();
