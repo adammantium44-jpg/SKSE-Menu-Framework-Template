@@ -1,16 +1,17 @@
-
-if(NOT DEFINED ENV{COMMONLIB_SSE_FOLDER})
-  message(FATAL_ERROR "Missing COMMONLIB_SSE_FOLDER environment variable")
+# =========================
+# CommonLibSSE location
+# =========================
+# Pakai submodule di extern/CommonLibSSE
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE/CMakeLists.txt")
+    set(COMMONLIB_SSE_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE")
+else()
+    message(FATAL_ERROR "Missing extern/CommonLibSSE (CommonLibSSE-NG submodule)")
 endif()
 
-if(NOT DEFINED ENV{IMGUI_LIB_FOLDER})
-  message(FATAL_ERROR "Missing IMGUI_LIB_FOLDER environment variable")
-endif()
-
+# SKYRIM_MODS_FOLDER masih perlu (buat copy output + SKSE Menu Framework)
 if(NOT DEFINED ENV{SKYRIM_MODS_FOLDER})
   message(FATAL_ERROR "Missing SKYRIM_MODS_FOLDER environment variable")
 endif()
-
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
@@ -18,10 +19,11 @@ set(wildlander_output false)
 set(steam_owrt_output false)
 set(steam_mods_output true)
 
-# It's recommended to set a minimum CMake version.
-# If you use CMake features from higher versions, update this to match.
+# =========================
+# Project config
+# =========================
 cmake_minimum_required(VERSION 3.21)
-# Set your project name. This will be the name of your SKSE .dll file.
+
 set(AUTHOR_NAME "AuthorName")
 set(PRODUCT_NAME "SKSEMenuFrameworkTemplate0.2")
 set(BEAUTIFUL_NAME "SKSE Menu Framework Template")
@@ -31,13 +33,11 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 
-
-
-
 configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.rc.in
-        ${CMAKE_CURRENT_BINARY_DIR}/version.rc
-        @ONLY)
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.rc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/version.rc
+    @ONLY
+)
 
 set(RESOURCE_FILE ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 set(RESOURCE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.res)
@@ -48,12 +48,11 @@ add_custom_command(
     DEPENDS ${RESOURCE_FILE}
 )
 
-# Add a custom target to ensure the resource file is generated
 add_custom_target(Resource ALL DEPENDS ${RESOURCE_OUTPUT})
 
-
-
-# Drew W � 18.01.2024 02:44: Here is my CMakeLists.txt that uses FetchContent for NG
+# =========================
+# CommonLibSSE + CLIB-UTIL
+# =========================
 include(FetchContent)
 
 set(ENABLE_SKYRIM_SE ON CACHE BOOL " " FORCE)
@@ -61,14 +60,12 @@ set(ENABLE_SKYRIM_AE ON CACHE BOOL " " FORCE)
 set(ENABLE_SKYRIM_VR ON CACHE BOOL " " FORCE)
 set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
 
-#FetchContent_MakeAvailable(CommonLibNG)
-
-
-add_subdirectory("$ENV{COMMONLIB_SSE_FOLDER}" ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
+# CommonLibSSE from submodule
+add_subdirectory(${COMMONLIB_SSE_FOLDER} ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
 get_target_property(COMMONLIB_SRC_DIR CommonLibSSE SOURCE_DIR)
 
-# CLIB-UTIL
-find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
+# CLIB-UTIL include path (pakai yang datang dari CommonLib)
+get_target_property(CLIB_UTIL_INCLUDE_DIRS CommonLibSSE INTERFACE_INCLUDE_DIRECTORIES)
 
 file(
   GLOB_RECURSE
@@ -90,15 +87,34 @@ add_commonlibsse_plugin(
   AUTHOR AUTHOR_NAME
   SOURCES ${headers} ${sources}
 )
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23) # <--- use C++23 standard
-target_precompile_headers(${PROJECT_NAME} PRIVATE include/PCH.h) # <--- PCH.h is required!
+
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
+target_precompile_headers(${PROJECT_NAME} PRIVATE include/PCH.h)
+
+# =========================
+# Includes & ImGui (lokal)
+# =========================
 target_include_directories(
-	${PROJECT_NAME}
-	PRIVATE
-	${CLIB_UTIL_INCLUDE_DIRS}
+    ${PROJECT_NAME}
+    PRIVATE
+    ${CLIB_UTIL_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}/include
-	${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui
 )
+
+# Dear ImGui sources as a separate static library
+add_library(imgui-lib
+    extern/imgui/imgui.cpp
+    extern/imgui/imgui_draw.cpp
+    extern/imgui/imgui_tables.cpp
+    extern/imgui/imgui_widgets.cpp
+    extern/imgui/imgui_demo.cpp
+)
+
+target_include_directories(imgui-lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE imgui-lib)
 
 include(cmake/headerlist.cmake)
 include(cmake/sourcelist.cmake)
@@ -106,16 +122,13 @@ include(cmake/sourcelist.cmake)
 install(TARGETS ${PROJECT_NAME}
         DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 
+# =========================
+# SKSE Menu Framework
+# =========================
+function(addMenuFramework MENU_FRAMEWORK_FOLDER)
 
-
-
-function(addMenuFramework MENU_FRAMEWORK_FOLDER IMGUI_FOLDER)
-
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(IMGUI_INSTALL_DIR "${IMGUI_FOLDER}/debug")
-    else()
-        set(IMGUI_INSTALL_DIR "${IMGUI_FOLDER}/release")
-    endif()
+    # Di CI, kita tidak pakai ImGui dari vcpkg/IMGUI_LIB_FOLDER lagi,
+    # jadi bagian find_package(ImGui) dihilangkan.
 
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(PROJECT_SUFFIX " DEV")
@@ -123,13 +136,8 @@ function(addMenuFramework MENU_FRAMEWORK_FOLDER IMGUI_FOLDER)
         set(PROJECT_SUFFIX "")
     endif()
 
-
-    set(ImGui_DIR "${IMGUI_INSTALL_DIR}/lib/cmake")
-    list(APPEND CMAKE_PREFIX_PATH ${ImGui_DIR})
-    find_package(ImGui CONFIG REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ImGui::imgui)
-
     add_library(SKSEMenuFramework SHARED IMPORTED GLOBAL)
+
     set_target_properties(SKSEMenuFramework PROPERTIES
         IMPORTED_LOCATION "${MENU_FRAMEWORK_FOLDER}/SKSE Menu Framework${PROJECT_SUFFIX}/SKSE/Plugins/SKSEMenuFramework.dll"
         IMPORTED_IMPLIB "${MENU_FRAMEWORK_FOLDER}/SKSE Menu Framework${PROJECT_SUFFIX}/SKSE/Plugins/SKSEMenuFramework.lib"
@@ -138,20 +146,19 @@ function(addMenuFramework MENU_FRAMEWORK_FOLDER IMGUI_FOLDER)
     target_include_directories(
 	    ${PROJECT_NAME}
 	    PRIVATE
-        "${MENU_FRAMEWORK_FOLDER}/SKSE Menu Framework DEV/SKSE/Plugins"
+        "${MENU_FRAMEWORK_FOLDER}/SKSE Menu Framework${PROJECT_SUFFIX}/SKSE/Plugins"
     )
 
     target_link_libraries(${PROJECT_NAME} PRIVATE SKSEMenuFramework)
 
 endfunction()
 
-addMenuFramework("$ENV{SKYRIM_MODS_FOLDER}" "$ENV{IMGUI_LIB_FOLDER}")
+addMenuFramework("$ENV{SKYRIM_MODS_FOLDER}")
 
+# =========================
+# Output copy helpers
+# =========================
 function(copyOutputs TARGET_FOLDER)
-    # If you specify an <OUTPUT_FOLDER> (including via environment variables)
-    # then we'll copy your mod files into Skyrim or a mod manager for you!
-
-    # Copy the SKSE plugin .dll files into the SKSE/Plugins/ folder
     set(DLL_FOLDER "${TARGET_FOLDER}/SKSE/Plugins")
 
     message(STATUS "SKSE plugin output folder: ${DLL_FOLDER}")
@@ -164,7 +171,6 @@ function(copyOutputs TARGET_FOLDER)
         VERBATIM
     )
 
-    # If you perform a "Debug" build, also copy .pdb file (for debug symbols)
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_custom_command(
             TARGET "${PROJECT_NAME}"
@@ -174,7 +180,6 @@ function(copyOutputs TARGET_FOLDER)
         )
     endif()
 endfunction()
-
 
 if(DEFINED ENV{SKYRIM_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_FOLDER}/Data")
     copyOutputs("$ENV{SKYRIM_FOLDER}/Data")
