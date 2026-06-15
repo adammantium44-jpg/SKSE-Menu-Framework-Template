@@ -60,6 +60,13 @@ set(ENABLE_SKYRIM_AE ON CACHE BOOL " " FORCE)
 set(ENABLE_SKYRIM_VR ON CACHE BOOL " " FORCE)
 set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
 
+# RapidCSV include dir (for CommonLibSSE-NG; provided by vcpkg)
+if(NOT DEFINED RAPIDCSV_INCLUDE_DIRS AND DEFINED ENV{VCPKG_ROOT})
+    set(RAPIDCSV_INCLUDE_DIRS
+        "$ENV{VCPKG_ROOT}/installed/x64-windows/include"
+    )
+endif()
+
 # CommonLibSSE from submodule
 add_subdirectory(${COMMONLIB_SSE_FOLDER} ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
 get_target_property(COMMONLIB_SRC_DIR CommonLibSSE SOURCE_DIR)
