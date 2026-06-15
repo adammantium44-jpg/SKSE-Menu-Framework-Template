@@ -30,8 +30,20 @@ jobs:
           mkdir "${{ env.SKYRIM_FOLDER }}"
           mkdir "${{ env.SKYRIM_FOLDER }}\Data"
 
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "${{ github.workspace }}\vcpkg"
+          cd "${{ github.workspace }}\vcpkg"
+          .\bootstrap-vcpkg.bat
+          echo "CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
+
+      - name: Install spdlog (and fmt) via vcpkg
+        run: |
+          cd "${{ github.workspace }}"
+          .\vcpkg\vcpkg.exe install spdlog:x64-windows fmt:x64-windows
+
       - name: Configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}"
 
       - name: Build
         run: cmake --build build --config Release
